@@ -185,6 +185,8 @@ def file_upload_to_s3(doc, method):
     path = doc.file_url
     if path.startswith('https://s3.') or path.startswith('/api/method/frappe_s3_attachment.controller.generate_file?'):
         return
+    if s3_upload and not (s3_upload.s3_settings_doc.aws_key and s3_upload.s3_settings_doc.aws_secret):
+        return
     site_path = frappe.utils.get_site_path()
     parent_doctype = doc.attached_to_doctype
     parent_name = doc.attached_to_name
