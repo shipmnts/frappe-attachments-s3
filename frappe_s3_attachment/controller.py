@@ -9,6 +9,8 @@ import os
 import boto3
 import magic
 import frappe
+from frappe.utils.pdf import cleanup
+from PyPDF2 import PdfFileWriter
 
 from botocore.exceptions import ClientError
 
@@ -39,20 +41,12 @@ class S3Operations(object):
         self.BUCKET = self.s3_settings_doc.bucket_name
         self.folder_name = self.s3_settings_doc.folder_name
 
-    def strip_special_chars(self, file_name):
-        """
-        Strips file charachters which doesnt match the regex.
-        """
-        regex = re.compile('[^0-9a-zA-Z._-]')
-        file_name = regex.sub('', file_name)
-        return file_name
-
     def key_generator(self, file_name, parent_doctype, parent_name):
         """
         Generate keys for s3 objects uploaded with file name attached.
         """
         file_name = file_name.replace(' ', '_')
-        file_name = self.strip_special_chars(file_name)
+        file_name = strip_special_chars(file_name)
         key = ''.join(
             random.choice(
                 string.ascii_uppercase + string.digits) for _ in range(8)
@@ -88,14 +82,14 @@ class S3Operations(object):
             return final_key
 
     def upload_files_to_s3_with_key(
-            self, file_path, file_name, is_private, parent_doctype, parent_name
+            self, file_path, file_name, is_private, parent_doctype, parent_name, file_key=None
     ):
         """
         Uploads a new file to S3.
         Strips the file extension to set the content_type in metadata.
         """
         mime_type = magic.from_file(file_path, mime=True)
-        key = self.key_generator(file_name, parent_doctype, parent_name)
+        key = file_key if file_key else self.key_generator(file_name, parent_doctype, parent_name)
         content_type = mime_type
         try:
             if is_private:
@@ -174,6 +168,63 @@ class S3Operations(object):
         )
 
         return url
+
+def strip_special_chars(file_name):
+    """
+    Strips file charachters which doesnt match the regex.
+    """
+    regex = re.compile('[^0-9a-zA-Z._-]')
+    file_name = regex.sub('', file_name)
+    return file_name
+
+def generate_voucher_pdf_key(voucher_doctype, posting_date, folder_name, file_name):
+    file_name = strip_special_chars(file_name.replace(' ', '_').replace('tmp', '')) 
+    # today = datetime.datetime.now()
+    year = posting_date.strftime("%Y")
+    month = posting_date.strftime("%m")
+    return folder_name + "/" + year + "/" + month + "/" + voucher_doctype.replace(' ', '_') + "/" + file_name
+
+def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=0):
+    try:
+        s3_upload = S3Operations()
+        if s3_upload and not (s3_upload.s3_settings_doc.aws_key and s3_upload.s3_settings_doc.aws_secret):
+            return
+        
+        output = PdfFileWriter()
+        output = frappe.get_print(voucher_doc.doctype, voucher_doc.name, print_format, as_pdf=True, output = output)
+        file_name = "{0}.pdf".format(voucher_doc.name)
+        file_path = os.path.join("/", "tmp", file_name)
+        output.write(open(file_path,"wb"))
+
+        key = generate_voucher_pdf_key(voucher_doc.doctype, voucher_doc.posting_date, s3_upload.folder_name, file_path)
+        s3_upload.upload_files_to_s3_with_key(
+            file_path, file_name,
+            is_private, voucher_doc.doctype,
+            voucher_doc.name, key
+        )
+
+        if is_private:
+            # site_name = "https://{}".format(frappe.local.site)
+            method = "frappe_s3_attachment.controller.generate_file"
+            file_url = """/api/method/{1}?key={2}""".format(method, key)
+        else:
+            file_url = '{}/{}/{}'.format(
+                s3_upload.S3_CLIENT.meta.endpoint_url,
+                s3_upload.BUCKET,
+                key
+            )
+        return file_url
+            
+    except IOError as e:
+            frappe.log_error('Error in uploading voucher pdf for {} '.format(voucher_doc.name))
+    finally:
+        cleanup(file_path,{})
+
+def delete_voucher_pdf_from_s3(content_hash):
+    """Delete file from s3"""
+    s3 = S3Operations()
+    if content_hash:
+        s3.delete_from_s3(content_hash)
 
 
 @frappe.whitelist()
