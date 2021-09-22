@@ -184,6 +184,11 @@ def generate_voucher_pdf_key(voucher_doctype, posting_date, folder_name, file_na
     month = posting_date.strftime("%m")
     return folder_name + "/" + year + "/" + month + "/" + voucher_doctype.replace(' ', '_') + "/" + file_name
 
+def get_voucher_file_details(voucher_doc):
+    file_name = "{0}.pdf".format(voucher_doc.name)
+    file_path = os.path.join("/", "tmp", file_name)
+    return file_name, file_path
+
 def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=0):
     try:
         s3_upload = S3Operations()
@@ -192,8 +197,7 @@ def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=0):
         
         output = PdfFileWriter()
         output = frappe.get_print(voucher_doc.doctype, voucher_doc.name, print_format, as_pdf=True, output = output)
-        file_name = "{0}.pdf".format(voucher_doc.name)
-        file_path = os.path.join("/", "tmp", file_name)
+        file_name, file_path = get_voucher_file_details(voucher_doc)
         output.write(open(file_path,"wb"))
 
         key = generate_voucher_pdf_key(voucher_doc.doctype, voucher_doc.posting_date, s3_upload.folder_name, file_path)
@@ -204,9 +208,9 @@ def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=0):
         )
 
         if is_private:
-            # site_name = "https://{}".format(frappe.local.site)
+            site_name = "https://{}".format(frappe.local.site)
             method = "frappe_s3_attachment.controller.generate_file"
-            file_url = """/api/method/{1}?key={2}""".format(method, key)
+            file_url = """{0}/api/method/{1}?key={2}""".format(site_name, method, key)
         else:
             file_url = '{}/{}/{}'.format(
                 s3_upload.S3_CLIENT.meta.endpoint_url,
@@ -220,9 +224,11 @@ def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=0):
     finally:
         cleanup(file_path,{})
 
-def delete_voucher_pdf_from_s3(content_hash):
+def delete_voucher_pdf_from_s3(voucher_doc):
     """Delete file from s3"""
     s3 = S3Operations()
+    file_name, file_path = get_voucher_file_details(voucher_doc)
+    content_hash = generate_voucher_pdf_key(voucher_doc.doctype, voucher_doc.posting_date, s3.folder_name, file_path)
     if content_hash:
         s3.delete_from_s3(content_hash)
 
