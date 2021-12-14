@@ -215,7 +215,7 @@ def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=1):
 
         if is_private:
             method = "frappe_s3_attachment.controller.generate_file"
-            file_url = """/api/method/{1}?key={2}""".format(method, key)
+            file_url = """/api/method/{0}?key={1}""".format(method, key)
         else:
             file_url = '{}/{}/{}'.format(
                 s3_upload.S3_CLIENT.meta.endpoint_url,
