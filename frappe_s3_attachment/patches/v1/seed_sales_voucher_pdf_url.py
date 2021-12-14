@@ -13,5 +13,5 @@ def execute():
         
         for voucher in frappe.get_all('Sales Invoice', fields=['name', 'doctype', 'posting_date', 'voucher_pdf_link'], filters=filters, order_by="creation desc"):
             if not voucher_pdf_link:
-                voucher_pdf_link = upload_voucher_pdf_to_s3(voucher, print_format, is_private=0)
+                voucher_pdf_link = upload_voucher_pdf_to_s3(voucher, print_format, is_private=1)
                 frappe.db.sql(""" update `tabSales Invoice` set voucher_pdf_link=%s where name=%s""", (voucher_pdf_link, voucher.name), auto_commit=1)

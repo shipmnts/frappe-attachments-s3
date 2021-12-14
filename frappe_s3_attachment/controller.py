@@ -189,7 +189,7 @@ def get_voucher_file_details(voucher_doc):
     file_path = os.path.join("/", "tmp", file_name)
     return file_name, file_path
 
-def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=0):
+def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=1):
     try:
         s3_upload = S3Operations()
         if s3_upload and not (s3_upload.s3_settings_doc.aws_key and s3_upload.s3_settings_doc.aws_secret):
@@ -208,9 +208,8 @@ def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=0):
         )
 
         if is_private:
-            site_name = "https://{}".format(frappe.local.site)
             method = "frappe_s3_attachment.controller.generate_file"
-            file_url = """{0}/api/method/{1}?key={2}""".format(site_name, method, key)
+            file_url = """/api/method/{1}?key={2}""".format(method, key)
         else:
             file_url = '{}/{}/{}'.format(
                 s3_upload.S3_CLIENT.meta.endpoint_url,
