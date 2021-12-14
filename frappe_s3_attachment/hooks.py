@@ -59,6 +59,9 @@ doctype_list_js = {
 # before_install = "frappe_s3_attachment.install.before_install"
 # after_install = "frappe_s3_attachment.install.after_install"
 
+upload_voucher_pdf_to_s3 = 'frappe_s3_attachment.controller.upload_voucher_pdf_to_s3'
+delete_voucher_pdf_from_s3 = 'frappe_s3_attachment.controller.delete_voucher_pdf_from_s3'
+
 # Desk Notifications
 # ------------------
 # See frappe.core.notifications.get_notification_config
