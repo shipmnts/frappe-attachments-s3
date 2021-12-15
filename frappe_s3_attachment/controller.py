@@ -11,6 +11,7 @@ import magic
 import frappe
 from frappe.utils.pdf import cleanup
 from PyPDF2 import PdfFileWriter
+from six import string_types
 
 from botocore.exceptions import ClientError
 
@@ -186,6 +187,8 @@ def strip_special_chars(file_name):
 def generate_voucher_pdf_key(voucher_doctype, posting_date, folder_name, file_name):
     file_name = strip_special_chars(file_name.replace(' ', '_').replace('tmp', '')) 
     # today = datetime.datetime.now()
+    if isinstance(posting_date, string_types):
+       posting_date = datetime.datetime.strptime(posting_date, '%Y-%m-%d')
     year = posting_date.strftime("%Y")
     month = posting_date.strftime("%m")
     return folder_name + "/" + year + "/" + month + "/" + voucher_doctype.replace(' ', '_') + "/" + file_name
