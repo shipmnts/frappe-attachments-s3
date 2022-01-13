@@ -10,8 +10,9 @@ import boto3
 import magic
 import frappe
 from frappe.utils.pdf import cleanup
-from PyPDF2 import PdfFileWriter
+from PyPDF2 import PdfFileWriter, PdfFileReader
 from six import string_types
+import io
 
 from botocore.exceptions import ClientError
 
@@ -185,7 +186,7 @@ def strip_special_chars(file_name):
     return file_name
 
 def generate_voucher_pdf_key(voucher_doctype, posting_date, folder_name, file_name):
-    file_name = strip_special_chars(file_name.replace(' ', '_').replace('tmp', '')) 
+    file_name = strip_special_chars(file_name.replace(' ', '_').replace('tmp', ''))
     # today = datetime.datetime.now()
     if isinstance(posting_date, string_types):
        posting_date = datetime.datetime.strptime(posting_date, '%Y-%m-%d')
@@ -203,10 +204,13 @@ def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=1):
         s3_upload = S3Operations()
         if s3_upload and not (s3_upload.s3_settings_doc.aws_key and s3_upload.s3_settings_doc.aws_secret):
             return
-        
-        output = PdfFileWriter()
-        output = frappe.get_print(voucher_doc.doctype, voucher_doc.name, print_format, as_pdf=True, output = output)
+
+        filedata = frappe.get_print(voucher_doc.doctype, voucher_doc.name, print_format, as_pdf=True)
         file_name, file_path = get_voucher_file_details(voucher_doc)
+
+        output = PdfFileWriter()
+        reader = PdfFileReader(io.BytesIO(filedata))
+        output.appendPagesFromReader(reader)
         output.write(open(file_path,"wb"))
 
         key = generate_voucher_pdf_key(voucher_doc.doctype, voucher_doc.posting_date, s3_upload.folder_name, file_path)
@@ -226,7 +230,7 @@ def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=1):
                 key
             )
         return file_url
-            
+
     except IOError as e:
             frappe.log_error('Error in uploading voucher pdf for {} '.format(voucher_doc.name))
     finally:
