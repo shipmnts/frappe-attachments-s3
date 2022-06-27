@@ -196,6 +196,7 @@ def generate_voucher_pdf_key(voucher_doctype, posting_date, folder_name, file_na
 
 def get_voucher_file_details(voucher_doc):
     file_name = "{0}.pdf".format(voucher_doc.name)
+    file_name = file_name.replace(' ', '').replace('/', '-')
     file_path = os.path.join("/", "tmp", file_name)
     return file_name, file_path
 
