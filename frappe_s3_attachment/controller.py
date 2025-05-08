@@ -28,14 +28,16 @@ class S3Operations(object):
             'S3 File Attachment',
             'S3 File Attachment',
         )
+        self.aws_key = self.s3_settings_doc.aws_key
+        self.aws_secret = self.s3_settings_doc.get_password('aws_secret')
         if (
-            self.s3_settings_doc.aws_key and
-            self.s3_settings_doc.aws_secret
+            self.aws_key and
+            self.aws_secret
         ):
             self.S3_CLIENT = boto3.client(
                 's3',
-                aws_access_key_id=self.s3_settings_doc.aws_key,
-                aws_secret_access_key=self.s3_settings_doc.aws_secret,
+                aws_access_key_id=self.aws_key,
+                aws_secret_access_key=self.aws_secret,
                 region_name=self.s3_settings_doc.region_name,
             )
         else:
@@ -138,8 +140,8 @@ class S3Operations(object):
         if self.s3_settings_doc.delete_file_from_cloud:
             S3_CLIENT = boto3.client(
                 's3',
-                aws_access_key_id=self.s3_settings_doc.aws_key,
-                aws_secret_access_key=self.s3_settings_doc.aws_secret,
+                aws_access_key_id=self.aws_key,
+                aws_secret_access_key=self.aws_secret,
                 region_name=self.s3_settings_doc.region_name,
             )
 
@@ -203,7 +205,7 @@ def get_voucher_file_details(voucher_doc):
 def upload_voucher_pdf_to_s3(voucher_doc, print_format, is_private=1):
     try:
         s3_upload = S3Operations()
-        if s3_upload and not (s3_upload.s3_settings_doc.aws_key and s3_upload.s3_settings_doc.aws_secret):
+        if s3_upload and not (s3_upload.aws_key and s3_upload.aws_secret):
             return
 
         filedata = frappe.get_print(voucher_doc.doctype, voucher_doc.name, print_format, as_pdf=True)
@@ -255,7 +257,7 @@ def file_upload_to_s3(doc, method):
     path = doc.file_url
     if path.startswith('https://s3.') or path.startswith('/api/method/frappe_s3_attachment.controller.generate_file?'):
         return
-    if s3_upload and not (s3_upload.s3_settings_doc.aws_key and s3_upload.s3_settings_doc.aws_secret):
+    if s3_upload and not (s3_upload.aws_key and s3_upload.aws_secret):
         return
     site_path = frappe.utils.get_site_path()
     parent_doctype = doc.attached_to_doctype
