@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 import os
 import frappe
 from frappe.model.document import Document
+from frappe.utils.password import encrypt
 
 class S3FileAttachment(Document):
     @property
@@ -14,7 +15,10 @@ class S3FileAttachment(Document):
 
     @property
     def aws_secret(self):
-        return os.environ.get("S3_SECRET", self.get_db_value('aws_secret'))
+        if os.environ.get("S3_SECRET"):
+            return encrypt(os.environ.get("S3_SECRET"))
+        else:
+            return self.get_db_value('aws_secret')
 
     @property
     def bucket_name(self):
